@@ -25,10 +25,18 @@ class ItemSet extends StatefulWidget {
 }
 
 class _ItemSetState extends State<ItemSet> {
-  int price = -1;
+  int lowPrice = -1;
+  int highPrice = -1;
+  int weightedAvgPrice = -1;
 
-  void updatePrice(int newPrice) {
-    setState(() => price = newPrice);
+  void updatePrices(List<int> newPrices) {
+    setState(
+      () {
+        lowPrice = newPrices[0];
+        highPrice = newPrices[1];
+        weightedAvgPrice = newPrices[2];
+      },
+    );
   }
 
   @override
@@ -150,7 +158,8 @@ class _ItemSetState extends State<ItemSet> {
                       ElevatedButton(
                         child: Icon(Icons.refresh),
                         style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(Colors.lightBlueAccent),
+                          backgroundColor:
+                              MaterialStateProperty.all(Colors.lightBlueAccent),
                           shape: MaterialStateProperty.all(CircleBorder()),
                           fixedSize: MaterialStateProperty.all(Size(16, 16)),
                         ),
@@ -161,26 +170,39 @@ class _ItemSetState extends State<ItemSet> {
                               if (curTime.difference(refreshTime) >
                                   Duration(seconds: 1)) {
                                 refreshTime = curTime;
-                                final Future<int> futurePrice = lowestSellOrder(
-                                    '${toFileName(widget.name)}_set');
-                                futurePrice.then((value) => updatePrice(value));
+                                final Future<List<int>> futurePrices =
+                                    getAllImportantData(
+                                        '${toFileName(widget.name)}_set');
+                                futurePrices
+                                    .then((value) => updatePrices(value));
                               } else {
-                                print("Stop spammin' ya fat fooken cunt");
+                                print("! Spam prevention. !");
                               }
                             },
                           ),
                         },
                       ),
-                      Image(
-                        image: AssetImage("graphics/platinum.png"),
-                        height: 16,
+                      buildCost(
+                        context,
+                        lowPrice,
+                        Icons.expand_more,
+                        Colors.green,
+                        null,
                       ),
-                      Text(
-                        price == -1 ? "???" : price.toString(),
-                        style: TextStyle(
-                          color: Colors.purpleAccent,
-                        ),
+                      buildCost(
+                        context,
+                        highPrice,
+                        Icons.expand_less,
+                        Colors.red,
+                        EdgeInsets.only(left: 4.0),
                       ),
+                      buildCost(
+                        context,
+                        weightedAvgPrice,
+                        Icons.functions,
+                        Colors.amber,
+                        EdgeInsets.only(left: 4.0),
+                      )
                     ],
                   ),
                 ],
@@ -270,6 +292,47 @@ class _ItemSetState extends State<ItemSet> {
           Shadow(
             blurRadius: 2.0,
           )
+        ],
+      ),
+    );
+  }
+
+  Widget buildCost(
+    BuildContext context,
+    int price,
+    IconData? overlay,
+    Color? color,
+    EdgeInsetsGeometry? padding,
+  ) {
+    return Padding(
+      padding: padding ?? const EdgeInsets.all(0),
+      child: Row(
+        children: [
+          Stack(
+            alignment: AlignmentDirectional.center,
+            children: [
+              Image(
+                image: AssetImage("graphics/platinum.png"),
+                height: 16,
+              ),
+              Opacity(
+                opacity: 0.75,
+                child: Icon(
+                  overlay,
+                  color: color ?? Colors.white,
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4.0),
+            child: Text(
+              price == -1 ? "???" : price.toString(),
+              style: TextStyle(
+                color: color ?? Colors.amber,
+              ),
+            ),
+          ),
         ],
       ),
     );
