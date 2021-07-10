@@ -17,8 +17,10 @@ Future<List<int>> getAllImportantData(String itemSet) async {
   );
 
   // Error handling
-  if (res.statusCode != 200)
-    throw Exception('http.get error: statusCode= ${res.statusCode}');
+  if (res.statusCode != 200) {
+    print(res);
+    // throw Exception('http.get error: statusCode= ${res.statusCode}');
+  }
 
   final data = jsonDecode(res.body);
 
@@ -44,6 +46,8 @@ Future<List<int>> getAllImportantData(String itemSet) async {
     weightSum += weight;
     weight *= 0.95;
   }
+
+  print("Prices for $itemSet updated on ${DateTime.now()}.");
 
   return [
     platValues[0].toInt(),

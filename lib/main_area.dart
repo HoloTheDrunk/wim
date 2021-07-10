@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
-
 import 'dart:io';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
+import 'package:wim/main.dart';
+
 import 'package:wim/set.dart';
+import 'package:wim/api_access.dart';
 
 class MainArea extends StatefulWidget {
   const MainArea({Key? key}) : super(key: key);
@@ -13,34 +16,83 @@ class MainArea extends StatefulWidget {
 }
 
 class _MainAreaState extends State<MainArea> {
-  String input = new File('data/inventory.csv').readAsStringSync();
+  String inputFile = new File('data/inventory.csv').readAsStringSync();
+
+  bool refreshing = false;
+  final refreshRate = const Duration(milliseconds: 350);
+  late Timer refreshTimer;
 
   List<List<dynamic>> inventory = [];
   List<List<dynamic>> additionalItems = [];
+  List<ItemSet> converted = [];
 
-  // const CsvToListConverter().convert(input, fieldDelimiter: ',');
+  TextEditingController addBoxController = TextEditingController();
+  late FocusNode addBoxFocusNode;
+
+  ItemSet itemToItemSet(List<dynamic> item) {
+    return ItemSet(
+      name: item[0],
+      type: item[1],
+      quantities: [item[2], item[3], item[4], item[5]].cast<int>(),
+      componentCodes: item[6].toString(),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    addBoxFocusNode = FocusNode();
     inventory = [
-      ...const CsvToListConverter().convert(input, fieldDelimiter: ','),
+      ...const CsvToListConverter()
+          .convert(inputFile, fieldDelimiter: ',')
+          .skip(1)
+          .toList(),
       ...additionalItems
     ];
-    List<ItemSet> converted = [];
+
     for (List<dynamic> item in inventory) {
-      //print("item#${item.hashCode}: $item | len:${item.length}");
       if (item[2] + item[3] + item[4] + item[5] > 0) {
-        converted.add(
-          ItemSet(
-            name: item[0],
-            type: item[1],
-            quantities: [item[2], item[3], item[4], item[5]].cast<int>(),
-            componentCodes: item[6].toString(),
-          ),
-        );
+        converted.add(itemToItemSet(item));
       }
     }
 
+    refreshTimer = Timer.periodic(
+      refreshRate,
+      (timer) {
+        setState(
+          () {
+            // print(
+            //     "${converted.map((itemSet) => itemSet.needsUpdating ? itemSet.name : "").toList()}");
+            for (int i = 0; i < converted.length; i++) {
+              if (converted[i].needsUpdating) {
+                final Future<List<int>> futurePrices =
+                    getAllImportantData('${toFileName(converted[i].name)}_set');
+                futurePrices.then(
+                  (values) {
+                    converted[i].lowPrice = values[0];
+                    converted[i].highPrice = values[1];
+                    converted[i].weightedAvgPrice = values[2];
+                  },
+                );
+                converted[i].needsUpdating = false;
+                converted[i].lastUpdate = DateTime.now();
+                break;
+              }
+            }
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    addBoxFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -92,6 +144,9 @@ class _MainAreaState extends State<MainArea> {
                         style: TextStyle(
                           color: Colors.white,
                         ),
+                        controller: addBoxController,
+                        focusNode: addBoxFocusNode,
+                        autofocus: true,
                         onSubmitted: (String setName) {
                           setState(
                             () {
@@ -117,14 +172,17 @@ class _MainAreaState extends State<MainArea> {
                                     if (!duplicate) {
                                       var newItemSet = itemSet;
                                       newItemSet[2] = 1;
-                                      print(additionalItems);
                                       additionalItems.add(itemSet);
+                                      converted.add(itemToItemSet(itemSet));
+                                      print(inventory.length);
                                       print(additionalItems);
                                     }
                                     break;
                                   }
                                 }
                               }
+                              addBoxController.clear();
+                              addBoxFocusNode.requestFocus();
                             },
                           );
                         },
@@ -151,34 +209,57 @@ class _MainAreaState extends State<MainArea> {
           child: Column(
             children: [
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: GridView.builder(
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 400,
-                      mainAxisExtent: 128,
-                      childAspectRatio: 3 / 2,
-                      crossAxisSpacing: 20,
-                      mainAxisSpacing: 20,
-                    ),
-                    clipBehavior: Clip.none,
-                    itemCount: converted.length,
-                    itemBuilder: (BuildContext context, index) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(8.0),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              blurRadius: 4.0,
-                            ),
-                          ],
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: GridView.builder(
+                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 400,
+                          mainAxisExtent: 128,
+                          childAspectRatio: 3 / 2,
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 20,
                         ),
-                        child: converted[index],
-                      );
-                    },
-                  ),
+                        clipBehavior: Clip.none,
+                        itemCount: converted.length,
+                        itemBuilder: (BuildContext context, index) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(8.0),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  blurRadius: 4.0,
+                                ),
+                              ],
+                            ),
+                            child: converted[index],
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor:
+                              MaterialStateProperty.all(Colors.green),
+                          shape: MaterialStateProperty.all(CircleBorder()),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Icon(Icons.save, color: Colors.white),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            saveInventory(inventory);
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

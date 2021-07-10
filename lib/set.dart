@@ -7,6 +7,11 @@ class ItemSet extends StatefulWidget {
   final Type type;
   final List<int> quantities;
   final String componentCodes;
+  bool needsUpdating;
+  int lowPrice;
+  int highPrice;
+  int weightedAvgPrice;
+  DateTime lastUpdate;
 
   ItemSet(
       {Key? key,
@@ -18,6 +23,11 @@ class ItemSet extends StatefulWidget {
         this.type = Type.values[type],
         this.quantities = quantities,
         this.componentCodes = componentCodes != null ? componentCodes : "000",
+        this.needsUpdating = true,
+        this.lowPrice = -1,
+        this.highPrice = -1,
+        this.weightedAvgPrice = -1,
+        this.lastUpdate = DateTime.fromMillisecondsSinceEpoch(0),
         super(key: key);
 
   @override
@@ -25,16 +35,12 @@ class ItemSet extends StatefulWidget {
 }
 
 class _ItemSetState extends State<ItemSet> {
-  int lowPrice = -1;
-  int highPrice = -1;
-  int weightedAvgPrice = -1;
-
   void updatePrices(List<int> newPrices) {
     setState(
       () {
-        lowPrice = newPrices[0];
-        highPrice = newPrices[1];
-        weightedAvgPrice = newPrices[2];
+        widget.lowPrice = newPrices[0];
+        widget.highPrice = newPrices[1];
+        widget.weightedAvgPrice = newPrices[2];
       },
     );
   }
@@ -167,16 +173,21 @@ class _ItemSetState extends State<ItemSet> {
                           setState(
                             () {
                               final curTime = DateTime.now();
-                              if (curTime.difference(refreshTime) >
-                                  Duration(seconds: 1)) {
-                                refreshTime = curTime;
-                                final Future<List<int>> futurePrices =
-                                    getAllImportantData(
-                                        '${toFileName(widget.name)}_set');
-                                futurePrices
-                                    .then((value) => updatePrices(value));
-                              } else {
-                                print("! Spam prevention. !");
+                              // if (curTime.difference(refreshTime) >
+                              //     Duration(milliseconds: 350)) {
+                              //   refreshTime = curTime;
+                              //   final Future<List<int>> futurePrices =
+                              //       getAllImportantData(
+                              //           '${toFileName(widget.name)}_set');
+                              //   futurePrices
+                              //       .then((value) => updatePrices(value));
+                              // } else {
+                              //   print("! Spam prevention. !");
+                              // }
+                              if (curTime.difference(widget.lastUpdate) >
+                                  Duration(seconds: 5)) {
+                                print("Updating ${widget.name}");
+                                widget.needsUpdating = true;
                               }
                             },
                           ),
@@ -184,21 +195,21 @@ class _ItemSetState extends State<ItemSet> {
                       ),
                       buildCost(
                         context,
-                        lowPrice,
+                        widget.lowPrice,
                         Icons.expand_more,
                         Colors.green,
                         null,
                       ),
                       buildCost(
                         context,
-                        highPrice,
+                        widget.highPrice,
                         Icons.expand_less,
                         Colors.red,
                         EdgeInsets.only(left: 4.0),
                       ),
                       buildCost(
                         context,
-                        weightedAvgPrice,
+                        widget.weightedAvgPrice,
                         Icons.functions,
                         Colors.amber,
                         EdgeInsets.only(left: 4.0),

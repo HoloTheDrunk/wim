@@ -1,23 +1,17 @@
-import 'dart:convert';
 import 'dart:core';
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import 'package:csv/csv.dart';
 import 'package:simple_shadow/simple_shadow.dart';
+import 'package:csv/csv.dart';
 
-import 'package:wim/set.dart';
 import 'package:wim/main_area.dart';
 
 void main() {
-  // debugPaintSizeEnabled = true;
-  // Future<int> lowest = lowestSellOrder();
-  // lowest.then((value) => print("Lowest price for Rhino Prime Set: $value"));
   runApp(MyApp());
-  //Future<int> lowestSellOrder = getLowestSellOrder("rhino_prime");
-  //lowestSellOrder.then((value) => print(value));
 }
 
 void saveInventory(List<List<dynamic>> inventory) {
@@ -26,8 +20,6 @@ void saveInventory(List<List<dynamic>> inventory) {
   output.write(ListToCsvConverter().convert(inventory));
   output.close();
 }
-
-void addToInventory(ItemSet set) {}
 
 class MyApp extends StatelessWidget {
   @override
@@ -83,7 +75,7 @@ class _WimState extends State<Wim> {
             Row(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 24.0),
+                  padding: const EdgeInsets.only(left: 12, right: 32.0),
                   child: SimpleShadow(
                     opacity: 0.6,
                     color: Colors.lightBlueAccent,

@@ -2,8 +2,6 @@ library wim.globals;
 
 import 'package:flutter/material.dart';
 
-DateTime refreshTime = DateTime.now();
-
 const ColorFilter greyscale = ColorFilter.matrix(
   <double>[
     0.2126, 0.7152, 0.0722, 0, 0, //R
